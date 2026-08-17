@@ -1,0 +1,7 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "powershell -NoProfile -NoLogo -ExecutionPolicy Bypass -File \"C:/Users/www83/Downloads/Claude_Quota_Line/Claude_Quota_Line/statusline.ps1\" -Align right -DumpInput",
+    "padding": 0
+  }
+}

@@ -40,6 +40,8 @@ Options:
 .\install.ps1 -ModelKey opus -ModelLabel Opus   # track a different per-model bucket
 .\install.ps1 -BarWidth 16                       # wider bars
 .\install.ps1 -Ascii                             # no box-drawing characters
+.\install.ps1 -Align left                        # default is right aligned
+.\install.ps1 -Width 160                         # fixed width if auto-detect fails
 .\install.ps1 -Uninstall
 ```
 
@@ -50,6 +52,10 @@ The installer copies `statusline.ps1` to `~/.claude/quota-line/`, backs up `~/.c
 Claude Code runs the configured command after every turn and pipes a JSON payload to stdin. The script reads `context_window.used_percentage` and, when present, `rate_limits.five_hour` and `rate_limits.seven_day` (Claude Code adds these for Pro/Max after the first response of a session).
 
 The per-model weekly figure is not part of that payload. For it, the script calls the usage endpoint that the `/usage` command itself uses, `https://api.anthropic.com/api/oauth/usage`, with the OAuth token from `~/.claude/.credentials.json`. This endpoint is undocumented and may change. The result is cached in `~/.claude/quota-line-cache.json` for 5 minutes (`-RefreshSeconds`). If the endpoint or the token is unavailable, that segment is simply dropped, the rest keeps working.
+
+Right alignment pads each line to the detected terminal width. Detection tries the console API, `COLUMNS`, then `mode con`. If none works, lines stay left aligned; pass `-Width` to force a value.
+
+To see the raw payload Claude Code sends, add `-DumpInput` to the command. The last payload is written to `~/.claude/quota-line-last-input.json`.
 
 If a segment has no data, it is skipped rather than rendered empty. Right after `/clear` you may see the placeholder line until the first response arrives.
 
@@ -106,6 +112,8 @@ cd claude-quota-line
 .\install.ps1 -ModelKey opus -ModelLabel Opus
 .\install.ps1 -BarWidth 16
 .\install.ps1 -Ascii
+.\install.ps1 -Align left
+.\install.ps1 -Width 160
 .\install.ps1 -Uninstall
 ```
 
@@ -118,6 +126,10 @@ cd claude-quota-line
 קלוד קוד מריץ את הפקודה המוגדרת אחרי כל תור ומעביר לה JSON דרך הקלט הסטנדרטי. הסקריפט קורא משם את אחוז חלון ההקשר ואת שני חלונות המגבלה כאשר הם קיימים.
 
 הנתון השבועי למודל בודד לא נמצא באותו JSON. בשבילו הסקריפט פונה לאותה נקודת קצה שבה משתמשת הפקודה `/usage`, עם הטוקן שנשמר בקובץ ההרשאות של קלוד קוד. נקודת הקצה הזו לא מתועדת ועלולה להשתנות. התוצאה נשמרת במטמון לחמש דקות. אם הטוקן או השרת לא זמינים, החלק הזה פשוט לא מוצג והשאר ממשיך לעבוד.
+
+היישור לימין מרפד כל שורה עד רוחב הטרמינל שזוהה. אם הזיהוי נכשל השורות נשארות משמאל, ואפשר לכפות רוחב עם `-Width`. כדי לראות מה קלוד קוד שולח בפועל, מוסיפים לפקודה `-DumpInput` והקלט האחרון נכתב לקובץ הבא:
+
+`~/.claude/quota-line-last-input.json`
 
 ## בדיקה
 

@@ -20,6 +20,9 @@ param(
     [int]$RefreshSeconds = 300,
     [string]$ModelKey = 'fable',
     [string]$ModelLabel = 'Fable',
+    [string]$CtxLabel = 'Context win',
+    [string]$FiveHourLabel = '5H Limit',
+    [string]$WeekLabel = 'Weekly',
     [switch]$Ascii,
     [ValidateSet('left','right')][string]$Align = 'left',
     [int]$Width = 0,
@@ -50,7 +53,10 @@ $GREEN = "$E[32m"; $YELLOW = "$E[33m"; $RED = "$E[31m"; $CYAN = "$E[36m"
 $FULL  = if ($Ascii) { '#' } else { [string][char]0x2588 }
 $EMPTY = if ($Ascii) { '.' } else { [string][char]0x2591 }
 $ARROW = if ($Ascii) { '~' } else { [string][char]0x21BB }
-$SEP   = if ($Ascii) { ' | ' } else { "  $DIM$([char]0x2502)$RST  " }
+$SEP   = if ($Ascii) { ' | ' } else { " $DIM$([char]0x2502)$RST " }
+$LabelWidth = ($CtxLabel, $FiveHourLabel, $WeekLabel, $ModelLabel | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum
+$ResetWidth = 11   # "^ Thu 13:00" / "^ 4h28m"
+
 
 function Get-Color([double]$p) {
     if ($p -ge 80) { return $RED }
@@ -62,7 +68,27 @@ function New-Bar([double]$p) {
     $p = [Math]::Max(0, [Math]::Min(100, $p))
     $n = [int][Math]::Round($p / 100 * $BarWidth)
     $c = Get-Color $p
-    return "$c$($FULL * $n)$DIM$($EMPTY * ($BarWidth - $n))$RST $c$([int][Math]::Round($p))%$RST"
+    $pct = ('{0}%' -f [int][Math]::Round($p)).PadLeft(4)
+    return "$c$($FULL * $n)$DIM$($EMPTY * ($BarWidth - $n))$RST $c$pct$RST"
+}
+
+# Visible length of a string that contains ANSI escapes.
+function Get-VisibleLength([string]$s) {
+    return ([regex]::Replace($s, "$E\[[0-9;]*m", '')).Length
+}
+
+# Pads with spaces on the right up to a visible width.
+function Set-VisibleWidth([string]$s, [int]$w) {
+    $pad = $w - (Get-VisibleLength $s)
+    if ($pad -gt 0) { return $s + (' ' * $pad) }
+    return $s
+}
+
+# One cell: label, bar, reset. Fixed widths so lines align as a table.
+function New-Cell([string]$label, [double]$p, $resetsAt, [bool]$weekly) {
+    $l = "$BOLD$($label.PadRight($LabelWidth))$RST"
+    $r = Set-VisibleWidth (Get-ResetLabel $resetsAt $weekly) $ResetWidth
+    return "$l $(New-Bar $p) $r"
 }
 
 # Accepts epoch seconds, epoch ms, or ISO 8601. Returns DateTimeOffset or $null.
@@ -206,20 +232,35 @@ function Format-Line([string]$s) {
 $parts1 = @()
 $parts2 = @()
 
-if ($null -ne $ctxPct) { $parts1 += "$($BOLD)Ctx$RST  $(New-Bar $ctxPct)" }
+if ($null -ne $ctxPct) { $parts1 += New-Cell $CtxLabel $ctxPct $null $false }
 
 $p = Get-Pct $fiveH
-if ($null -ne $p) { $parts1 += "$($BOLD)5h$RST   $(New-Bar $p) $(Get-ResetLabel $fiveH.resets_at $false)" }
+if ($null -ne $p) { $parts1 += New-Cell $FiveHourLabel $p $fiveH.resets_at $false }
 
 $p = Get-Pct $week
-if ($null -ne $p) { $parts2 += "$($BOLD)Week$RST $(New-Bar $p) $(Get-ResetLabel $week.resets_at $true)" }
+if ($null -ne $p) { $parts2 += New-Cell $WeekLabel $p $week.resets_at $true }
 
 $p = Get-Pct $model
-if ($null -ne $p) { $parts2 += "$BOLD$ModelLabel$RST $(New-Bar $p) $(Get-ResetLabel $model.resets_at $true)" }
+if ($null -ne $p) { $parts2 += New-Cell $ModelLabel $p $model.resets_at $true }
 
 if ($parts1.Count -eq 0 -and $parts2.Count -eq 0) {
-    Write-Output (Format-Line "$($DIM)quota: waiting for first response$RST")
+    Write-Output "$($DIM)quota: waiting for first response$RST"
     exit 0
 }
-if ($parts1.Count) { Write-Output (Format-Line ($parts1 -join $SEP)) }
-if ($parts2.Count) { Write-Output (Format-Line ($parts2 -join $SEP)) }
+
+$lines = @()
+if ($parts1.Count) { $lines += ($parts1 -join $SEP) }
+if ($parts2.Count) { $lines += ($parts2 -join $SEP) }
+
+if ($Align -eq 'Right') {
+    $w = $Width
+    if ($w -le 0) { try { $w = [Console]::WindowWidth } catch {} }
+    if ($w -le 0 -and $env:COLUMNS) { $w = [int]$env:COLUMNS }
+    if ($w -le 0) { $w = 120 }
+    $w -= 2   # Claude Code draws a small margin
+    $lines = $lines | ForEach-Object {
+        $pad = $w - (Get-VisibleLength $_)
+        if ($pad -gt 0) { (' ' * $pad) + $_ } else { $_ }
+    }
+}
+$lines | ForEach-Object { Write-Output $_ }

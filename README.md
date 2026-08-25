@@ -3,20 +3,22 @@
 Two-line status line for Claude Code that shows the same numbers you see in the claude.ai usage panel, but inside the terminal, all the time.
 
 ```
-Ctx  ██░░░░░░░░ 22%   │   5h   █░░░░░░░░░ 11% ↻ 4h48m
-Week ███░░░░░░░ 28% ↻ Thu 12:59   │   Fable ████░░░░░░ 45% ↻ Thu 12:59
+Context win ██░░░░░░░░  22%             │ 5H Limit    █░░░░░░░░░  11% ↻ 4h48m
+Weekly      ███░░░░░░░  28% ↻ Thu 12:59 │ Fable       ████░░░░░░  45% ↻ Thu 12:59
 ```
 
 Bars turn green under 50%, yellow from 50%, red from 80%.
 
 ## What it shows
 
-| Segment | Source | Meaning |
-| --- | --- | --- |
-| `Ctx` | stdin | Context window fill for the current session |
-| `5h` | stdin, API fallback | Rolling 5-hour limit and time until it resets |
-| `Week` | stdin, API fallback | Weekly limit across all models and reset day |
-| `Fable` | API | Weekly limit for one model, configurable |
+| Segment | Default label | Source | Meaning |
+| --- | --- | --- | --- |
+| Context | `Context win` | stdin | Context window fill for the current session |
+| 5-hour | `5H Limit` | stdin, API fallback | Rolling 5-hour limit and time until it resets |
+| Weekly | `Weekly` | stdin, API fallback | Weekly limit across all models and reset day |
+| Per-model | `Fable` | API | Weekly limit for one model, configurable |
+
+Every label is configurable, and all four are padded to the widest one so the bars line up.
 
 ## Requirements
 
@@ -27,8 +29,8 @@ Bars turn green under 50%, yellow from 50%, red from 80%.
 ## Install
 
 ```powershell
-git clone https://github.com/<user>/claude-quota-line
-cd claude-quota-line
+git clone https://github.com/www8351/Claude_Quota_Line
+cd Claude_Quota_Line
 .\install.ps1
 ```
 
@@ -42,6 +44,8 @@ Options:
 .\install.ps1 -Ascii                             # no box-drawing characters
 .\install.ps1 -Align left                        # default is right aligned
 .\install.ps1 -Width 160                         # fixed width if auto-detect fails
+.\install.ps1 -CtxLabel Ctx -FiveHourLabel 5h -WeekLabel Week   # shorter labels
+.\install.ps1 -RefreshSeconds 600                # per-model cache lifetime
 .\install.ps1 -Uninstall
 ```
 
@@ -53,7 +57,7 @@ Claude Code runs the configured command after every turn and pipes a JSON payloa
 
 The per-model weekly figure is not part of that payload. For it, the script calls the usage endpoint that the `/usage` command itself uses, `https://api.anthropic.com/api/oauth/usage`, with the OAuth token from `~/.claude/.credentials.json`. This endpoint is undocumented and may change. The result is cached in `~/.claude/quota-line-cache.json` for 5 minutes (`-RefreshSeconds`). If the endpoint or the token is unavailable, that segment is simply dropped, the rest keeps working.
 
-Right alignment pads each line to the detected terminal width. Detection tries the console API, `COLUMNS`, then `mode con`. If none works, lines stay left aligned; pass `-Width` to force a value.
+Right alignment pads each line to the detected terminal width, less `-RightMargin` (default 2). Detection tries the console API, `COLUMNS`, then `mode con`. If none works, lines stay left aligned; pass `-Width` to force a value. Note that `statusline.ps1` itself defaults to left alignment — the installer is what writes `-Align right` into the command.
 
 To see the raw payload Claude Code sends, add `-DumpInput` to the command. The last payload is written to `~/.claude/quota-line-last-input.json`.
 
@@ -66,6 +70,9 @@ If a segment has no data, it is skipped rather than rendered empty. Right after 
 .\test.ps1 -NoApi   # same, without the per-model API call
 ```
 
+`quota.json` in this repo is a sample of the `statusLine` block the installer merges into
+`~/.claude/settings.json`; the path inside it is one machine's and is not read by anything.
+
 ## License
 
 MIT
@@ -77,8 +84,8 @@ MIT
 שורת סטטוס בשתי שורות לקלוד קוד שמציגה את אותם המספרים שמופיעים בחלון השימוש באתר, אבל בתוך הטרמינל, כל הזמן.
 
 ```
-Ctx  ██░░░░░░░░ 22%   │   5h   █░░░░░░░░░ 11% ↻ 4h48m
-Week ███░░░░░░░ 28% ↻ Thu 12:59   │   Fable ████░░░░░░ 45% ↻ Thu 12:59
+Context win ██░░░░░░░░  22%             │ 5H Limit    █░░░░░░░░░  11% ↻ 4h48m
+Weekly      ███░░░░░░░  28% ↻ Thu 12:59 │ Fable       ████░░░░░░  45% ↻ Thu 12:59
 ```
 
 הפסים ירוקים מתחת ל 50 אחוז, צהובים מ 50, אדומים מ 80.
@@ -99,8 +106,8 @@ Week ███░░░░░░░ 28% ↻ Thu 12:59   │   Fable ████
 ## התקנה
 
 ```powershell
-git clone https://github.com/<user>/claude-quota-line
-cd claude-quota-line
+git clone https://github.com/www8351/Claude_Quota_Line
+cd Claude_Quota_Line
 .\install.ps1
 ```
 
@@ -114,6 +121,8 @@ cd claude-quota-line
 .\install.ps1 -Ascii
 .\install.ps1 -Align left
 .\install.ps1 -Width 160
+.\install.ps1 -CtxLabel Ctx -FiveHourLabel 5h -WeekLabel Week
+.\install.ps1 -RefreshSeconds 600
 .\install.ps1 -Uninstall
 ```
 
